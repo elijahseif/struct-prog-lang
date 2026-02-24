@@ -19,6 +19,12 @@ patterns = [
     (r"\)", ")"),
     (r"\=", "="),
     (r"print\b", "print"),
+    (r"if\b", "if"),
+    (r"else\b", "else"),
+    (r"for\b", "for"),
+    (r"assert\b", "assert"),
+    (r"try\b", "try"),
+    (r"catch\b", "catch"),
     (r"[a-zA-Z_][\w]*", "identifier"),
     (r".", "error"),
 ]
@@ -88,10 +94,10 @@ def test_operators():
 
 def test_keywords():
     print("test tokenize keywords")
-    t = tokenize("print")
-    tags = [tok["tag"] for tok in t]
-    assert tags == ["print", None]
-
+    keywords = "print if else for try catch assert"
+    t = tokenize(keywords)
+    tags = [tok["tag"] for tok in t][0:-1]
+    assert " ".join(tags) == keywords
 
 def test_identifiers():
     print("test tokenize identifiers")
@@ -137,6 +143,7 @@ def test_error():
 if __name__ == "__main__":
     test_digits()
     test_operators()
+    test_keywords()
     test_expressions()
     test_identifiers()
     test_whitespace()
