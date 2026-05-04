@@ -588,6 +588,16 @@ def test_parse_complex_expression():
         "function": {"tag": "identifier", "value": "x"},
         "arguments": [{"tag": "number", "value": 1}, {"tag": "number", "value": 2}],
     }
+    ast, tokens = parse_complex_expression(tokenize("o.m(1,2)"))
+    assert ast == {
+        "tag": "call",
+        "function": {
+            "tag": "complex",
+            "base": {"tag": "identifier", "value": "o"},
+            "index": {"tag": "string", "value": "m"},
+        },
+        "arguments": [{"tag": "number", "value": 1}, {"tag": "number", "value": 2}],
+    }
 
 
 # ARITHMETIC EXPRESSIONS
@@ -1624,6 +1634,7 @@ if __name__ == "__main__":
 
     test_functions = [
         test_parse_simple_expression,
+        test_parse_complex_expression,
     ]
     test_grammar = grammar
 
