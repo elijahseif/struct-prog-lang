@@ -145,7 +145,7 @@ def ast_to_string(ast):
         return ast_to_string(ast["function"]) + "(" + ",".join(items) + ")"
 
     if ast["tag"] == "complex":
-        s = f"{ast_to_string(ast["base"])}[{ast_to_string(ast["index"])}]"
+        s = f"{ast_to_string(ast['base'])}[{ast_to_string(ast['index'])}]"
         return s
 
     if ast["tag"] == "assign":
@@ -175,6 +175,18 @@ def ast_to_string(ast):
 
 
 __builtin_functions = ["head", "tail", "length", "keys", "input"]
+
+
+def is_function_value(value):
+    return isinstance(value, dict) and value.get("tag") == "function"
+
+
+def bind_method(receiver, function_value):
+    return {
+        "tag": "bound_method",
+        "receiver": receiver,
+        "function": function_value,
+    }
 
 
 def evaluate_builtin_function(function_name, args):
@@ -533,8 +545,13 @@ def evaluate(ast, environment):
             if arg_status == "exit":
                 return arg_val, "exit"
             argument_values.append(arg_val)
+        if isinstance(function, dict) and function.get("tag") == "bound_method":
+            argument_values = [function["receiver"]] + argument_values
+            function = function["function"]
         if function.get("tag") == "builtin":
             return evaluate_builtin_function(function["name"], argument_values)
+        if not is_function_value(function):
+            raise Exception(f"Attempted to call non-function value: {function}")
 
         # regular function call:
         local_environment = {
@@ -579,7 +596,10 @@ def evaluate(ast, environment):
             assert type(base) == dict
             if index not in base:
                 raise KeyError(f"Key '{index}' not found in object")
-            return base[index], None
+            value = base[index]
+            if is_function_value(value):
+                return bind_method(base, value), None
+            return value, None
         assert False, f"Unknown index type [{index}]"
 
     if ast["tag"] == "assign":
@@ -1024,6 +1044,25 @@ def test_evaluate_complex_expression():
     assert result == 7
 
 
+def test_evaluate_method_binding():
+    print("test evaluate_method_binding")
+    environment = {}
+    code = '''
+        counter = {
+            "value": 3,
+            "get": function(self) { return self.value },
+            "add": function(self, n) { return self.value + n }
+        };
+        counter.get()
+    '''
+    result, _ = evaluate(parse(tokenize(code)), environment)
+    assert result == 3
+
+    code = 'counter["add"](4)'
+    result, _ = evaluate(parse(tokenize(code)), environment)
+    assert result == 7
+
+
 def test_evaluate_complex_assignment():
     print("test evaluate_complex_assignment")
     environment = {"x": [1, 2, 3]}
@@ -1244,6 +1283,7 @@ if __name__ == "__main__":
     test_evaluate_function_literal()
     test_evaluate_function_call()
     test_evaluate_complex_expression()
+    test_evaluate_method_binding()
     test_evaluate_complex_assignment()
     test_evaluate_return_statement()
     test_evaluate_list_literal()
