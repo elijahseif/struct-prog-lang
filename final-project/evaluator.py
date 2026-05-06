@@ -1046,6 +1046,8 @@ def test_evaluate_complex_expression():
 
 def test_evaluate_method_binding():
     print("test evaluate_method_binding")
+    
+    # Test 1: Basic method call with receiver binding
     environment = {}
     code = '''
         counter = {
@@ -1056,11 +1058,88 @@ def test_evaluate_method_binding():
         counter.get()
     '''
     result, _ = evaluate(parse(tokenize(code)), environment)
-    assert result == 3
+    assert result == 3, f"Expected 3, got {result}"
 
+    # Test 2: Method call with arguments
     code = 'counter["add"](4)'
     result, _ = evaluate(parse(tokenize(code)), environment)
-    assert result == 7
+    assert result == 7, f"Expected 7, got {result}"
+
+    # Test 3: Method modifies object state
+    environment = {}
+    code = '''
+        obj = {
+            "x": 1,
+            "inc": function(self) {
+                self.x = self.x + 1;
+                return self.x
+            }
+        };
+        obj.inc()
+    '''
+    result, _ = evaluate(parse(tokenize(code)), environment)
+    assert result == 2, f"Expected 2, got {result}"
+    assert environment["obj"]["x"] == 2, f"Expected obj.x = 2, got {environment['obj']['x']}"
+
+    # Test 4: Multiple method calls on same object
+    environment = {}
+    code = '''
+        obj = {
+            "x": 10,
+            "inc": function(self) { self.x = self.x + 1; return self.x },
+            "double": function(self) { self.x = self.x * 2; return self.x }
+        };
+        result1 = obj.inc();
+        result2 = obj.double();
+        result3 = obj.inc()
+    '''
+    result, _ = evaluate(parse(tokenize(code)), environment)
+    # x: 10 -> inc -> 11 -> double -> 22 -> inc -> 23
+    assert environment["obj"]["x"] == 23, f"Expected final x = 23, got {environment['obj']['x']}"
+
+    # Test 5: Method with multiple parameters
+    environment = {}
+    code = '''
+        obj = {
+            "a": 5,
+            "b": 10,
+            "sum": function(self, x, y) { return self.a + self.b + x + y }
+        };
+        obj.sum(2, 3)
+    '''
+    result, _ = evaluate(parse(tokenize(code)), environment)
+    assert result == 20, f"Expected 20, got {result}"
+
+    # Test 6: Nested object method calls
+    environment = {}
+    code = '''
+        inner = {
+            "val": 5,
+            "get": function(self) { return self.val }
+        };
+        outer = {
+            "obj": inner,
+            "read_inner": function(self) { return self.obj.get() }
+        };
+        outer.read_inner()
+    '''
+    result, _ = evaluate(parse(tokenize(code)), environment)
+    assert result == 5, f"Expected 5, got {result}"
+
+    # Test 7: Extracted method (loses receiver binding) - verify behavior
+    environment = {}
+    code = '''
+        obj = {
+            "x": 42,
+            "get_x": function(self) { return self.x }
+        };
+        extracted = obj.get_x;
+        extracted
+    '''
+    result, _ = evaluate(parse(tokenize(code)), environment)
+    # Result should be a bound_method (dict with tag, obj, func)
+    assert isinstance(result, dict), f"Expected dict, got {type(result)}"
+    assert result.get("tag") == "bound_method", f"Expected bound_method tag, got {result}"
 
 
 def test_evaluate_complex_assignment():
